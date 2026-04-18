@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Shield, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Show } from "@clerk/react";
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -42,10 +43,23 @@ export function Navbar() {
         </nav>
 
         <div className="hidden md:flex items-center gap-4">
-          <Button variant="ghost" className="text-white hover:text-primary">Log in</Button>
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(0,240,255,0.3)]">
-            Get Started
-          </Button>
+          <Show when="signed-out">
+            <Link href="/sign-in">
+              <Button variant="ghost" className="text-white hover:text-primary">Log in</Button>
+            </Link>
+            <Link href="/sign-up">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(0,240,255,0.3)]">
+                Get Started
+              </Button>
+            </Link>
+          </Show>
+          <Show when="signed-in">
+            <Link href="/dashboard">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(0,240,255,0.3)]">
+                Dashboard
+              </Button>
+            </Link>
+          </Show>
         </div>
 
         <button
