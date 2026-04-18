@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "WmaIBch0kbK1bv1k6tq6R"
+uri = "file://artifacts/nexusproxy/public/images/hero-bg.png"
+type = "image"
+title = "Abstract dark tech server room"
