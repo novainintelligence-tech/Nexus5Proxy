@@ -51,7 +51,7 @@ pnpm workspace monorepo using TypeScript.
 ## Important Notes
 
 - **Crypto wallets**: Addresses in `artifacts/api-server/src/lib/crypto-wallets.ts` are placeholders. Set WALLET_BTC, WALLET_USDT_TRC20, WALLET_USDC secrets for real payments.
-- **Admin role**: Promote first user via SQL: `UPDATE users SET role='admin' WHERE email='...'`
+- **Admin role**: Promote first user via SQL: `UPDATE users SET role='admin' WHERE email='terry4white1956@gmail.com'`
 - **Payment flow**: Manual — user submits tx hash, admin confirms in admin panel → subscription activates → proxies assigned
 - **Expiry job**: Runs every 5 minutes, expires subscriptions and revokes proxy access
 - **Base path**: `/nexusproxy` — all routing uses `import.meta.env.BASE_URL`
