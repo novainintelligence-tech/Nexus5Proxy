@@ -48,3 +48,6 @@ channel = "stable-25_05"
 WALLET_USDC = "0xfe601096668c46d4bb0bd4e3c93751a3a8f4b3e5"
 WALLET_USDT_TRC20 = "TZADiUxhu9Y5bvJUMbMtBgFW43KqQ1hzaD"
 WALLET_BTC = "1EqgNKJMmnnWpGjYZJAapDEyyXruXxLCYj"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-afbff366-eee5-4550-bbcb-de243258d865"
