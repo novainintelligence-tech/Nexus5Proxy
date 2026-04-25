@@ -33,20 +33,45 @@ pnpm workspace monorepo using TypeScript.
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
-## Database Schema (7 tables)
+## Database Schema (8 tables)
 
 - `users` — Clerk-synced users (id = Clerk userId string), role: "user" | "admin"
 - `plans` — subscription plans (id is varchar string like "plan_starter")
-- `proxies` — proxy credentials (ip, port, username, password, proxyType, country)
-- `payments` — crypto payment records (currency: BTC/USDT_TRC20/USDC, status: pending/confirmed/failed)
-- `subscriptions` — user subscriptions (status: active/expired/cancelled)
+- `proxies` — proxy credentials (ip, port, username, password, proxyType, country, **city, isp, latencyMs, status, lastCheckedAt, priceCents** + uniqueIndex on ip+port)
+- `payments` — crypto payment records (currency: BTC/USDT_TRC20/USDC, status: pending/confirmed/failed). For cart purchases, `planId="cart"` sentinel is used.
+- `subscriptions` — user subscriptions (status: active/expired/cancelled/pending)
 - `user_proxies` — junction: which proxies are assigned to which subscriptions
 - `usage_logs` — bandwidth/connection usage tracking
+- **`cart_items`** — temporary 15-min reservations (uniqueIndex on proxyId enforces one-active-reservation-per-proxy)
 
 ## Seeded Data
 
-- 4 plans: Daily Starter ($2), Starter ($10), Pro ($40), Business ($120)
-- 5 demo proxies: 2x residential (US, DE), 2x datacenter (UK, FR), 1x mobile (US)
+- **25 plans** matching marketplace pricing tiers:
+  - SOCKS5 Residential by IP (1300/2600/4500/8000 IPs, 30-day)
+  - SOCKS5 Residential by GB (5/10/20/30 GB packs)
+  - Rotating ISP / Residential (130/280/500/1000 ports)
+  - Unlimited Residential (1d/3d/7d/14d/30d unlimited bandwidth)
+  - Plus legacy Daily/Starter/Pro/Business
+- 11 demo proxies (residential / datacenter / isp / mobile) across US/DE/UK/FR/NL/SG with realistic priceCents
+
+## Marketplace Flow (Cart-based purchase)
+
+1. User browses public `GET /api/proxies` (filter by search/country/type) on `/proxies/proxy-list`
+2. `POST /api/cart` reserves a proxy for 15 min (uniqueIndex prevents double-reservation)
+3. Cart cleanup job (every 1 min) deletes expired `cart_items`
+4. `POST /api/purchase` converts cart → pending Payment + pending Subscription + pre-assigned (inactive) `user_proxies` rows
+5. User pays crypto on `/payment?paymentId=...` page
+6. Admin confirms in `/admin` → cart-payment flow flips subscription to `active` + flips user_proxies to `isActive=true`
+
+## Frontend Routes
+
+- Public: `/`, `/sign-in`, `/sign-up`
+- App: `/dashboard` (banner + featured plans + setup guides), `/plans`, `/payment`, `/cart`
+- Proxies: `/proxies/proxy-list`, `/proxies/proxy-settings`
+- Products: `/proxy-server`, `/static-residential`, `/rotating-residential` (all reuse `<ProxyList initialType="..."/>`)
+- Account: `/subscription`, `/referral`, `/api`, `/settings`, `/stats`, `/usage`
+- Admin: `/admin` (gated by `role === "admin"`)
+- Layout: `AppLayout` with collapsible grouped sidebar + cart-count header button
 
 ## Important Notes
 
@@ -56,16 +81,5 @@ pnpm workspace monorepo using TypeScript.
 - **Expiry job**: Runs every 5 minutes, expires subscriptions and revokes proxy access
 - **Base path**: `/nexusproxy` — all routing uses `import.meta.env.BASE_URL`
 - **priceUsd**: Stored in cents (divide by 100 to display)
-
-## Frontend Pages
-
-- `/` — Public landing page (marketing)
-- `/sign-in` `/sign-up` — Clerk auth pages (dark themed)
-- `/dashboard` — Active subscription, bandwidth, quick proxy overview
-- `/plans` — All pricing plans from DB with Buy Now CTA
-- `/payment` — Crypto payment flow (BTC/USDT/USDC) with wallet + hash submit
-- `/proxies` — My assigned proxies with copy-to-clipboard
-- `/usage` — Bandwidth stats, expiry countdown
-- `/admin` — Admin panel (Stats, Users, Payments, Proxies, Plans tabs)
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

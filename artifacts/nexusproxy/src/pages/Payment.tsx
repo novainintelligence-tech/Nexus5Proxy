@@ -15,6 +15,7 @@ export function Payment() {
   const [location, setLocation] = useLocation();
   const searchParams = new URLSearchParams(window.location.search);
   const planId = searchParams.get("planId");
+  const paymentId = searchParams.get("paymentId");
   const [currency, setCurrency] = useState("BTC");
   const [txHash, setTxHash] = useState("");
   
@@ -25,14 +26,24 @@ export function Payment() {
   const createPayment = useCreatePayment();
   const submitHash = useSubmitPaymentHash();
 
-  const plan = plans?.find(p => p.id === planId);
-  const activePayment = payments?.find(p => p.planId === planId && (p.status === "pending" || p.status === "confirmed"));
+  // If paymentId is in the URL (cart purchase flow), match by that.
+  // Otherwise fall back to planId-based matching for the legacy plan checkout.
+  const activePayment = paymentId
+    ? payments?.find(p => p.id === paymentId)
+    : payments?.find(p => p.planId === planId && (p.status === "pending" || p.status === "confirmed"));
+
+  // For plan-based checkout we pull the plan record. For cart purchases we
+  // synthesize a "plan" from the payment for display purposes.
+  const planFromList = plans?.find(p => p.id === planId);
+  const plan = planFromList ?? (activePayment && activePayment.planId === "cart"
+    ? { id: "cart", name: "Cart Purchase", priceUsd: activePayment.amountUsd, proxyCount: 0, bandwidthGb: 0, durationDays: 30 }
+    : null);
 
   useEffect(() => {
-    if (!planId && !isPlansLoading) {
+    if (!planId && !paymentId && !isPlansLoading) {
       setLocation("/plans");
     }
-  }, [planId, isPlansLoading, setLocation]);
+  }, [planId, paymentId, isPlansLoading, setLocation]);
 
   if (isPlansLoading || isPaymentsLoading) {
     return (

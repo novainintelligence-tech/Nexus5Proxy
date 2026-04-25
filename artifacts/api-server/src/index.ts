@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startExpiryJob } from "./jobs/expiry";
+import { startCartCleanupJob } from "./jobs/cart-cleanup";
 
 const rawPort = process.env["PORT"];
 
@@ -24,4 +25,5 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   startExpiryJob();
+  startCartCleanupJob();
 });

@@ -64,6 +64,8 @@ export interface Subscription {
   id: string;
   userId: string;
   planId: string;
+  /** @nullable */
+  planName?: string | null;
   status: string;
   bandwidthGbTotal: number;
   bandwidthUsedMb: number;
@@ -84,6 +86,12 @@ export interface UserProxy {
   proxyType: string;
   /** @nullable */
   country?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  status?: string | null;
+  /** @nullable */
+  lastCheckedAt?: string | null;
   isActive: boolean;
   assignedAt: string;
 }
@@ -95,6 +103,64 @@ export interface ActiveSubscription {
   /** @nullable */
   remainingHours?: number | null;
   bandwidthRemainingMb: number;
+}
+
+export interface AvailableProxy {
+  id: string;
+  ip: string;
+  port: number;
+  proxyType: string;
+  /** @nullable */
+  country?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  isp?: string | null;
+  /** @nullable */
+  latencyMs?: number | null;
+  status: string;
+  /** @nullable */
+  lastCheckedAt?: string | null;
+  priceCents: number;
+}
+
+export interface CartItem {
+  id: string;
+  proxyId: string;
+  expiresAt: string;
+  /** @nullable */
+  createdAt?: string | null;
+  /** @nullable */
+  ip?: string | null;
+  /** @nullable */
+  port?: number | null;
+  /** @nullable */
+  proxyType?: string | null;
+  /** @nullable */
+  country?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  priceCents?: number | null;
+}
+
+export interface Cart {
+  items: CartItem[];
+  totalCents: number;
+  reservationMinutes: number;
+}
+
+export interface AddToCartBody {
+  proxyId: string;
+}
+
+export interface PurchaseCartBody {
+  currency: string;
+}
+
+export interface PurchaseResult {
+  payment: Payment;
+  subscription: Subscription;
 }
 
 export interface UsageStats {
@@ -197,3 +263,10 @@ export interface CreatePlanBody {
   proxyTypes?: string[];
   features?: string[];
 }
+
+export type ListAvailableProxiesParams = {
+  search?: string;
+  country?: string;
+  type?: string;
+  limit?: number;
+};

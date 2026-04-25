@@ -15,6 +15,8 @@ tags:
   - name: proxies
   - name: admin
   - name: usage
+  - name: cart
+  - name: purchase
 paths:
   /healthz:
     get:
@@ -159,6 +161,49 @@ paths:
         "404":
           description: No active subscription
 
+  /proxies:
+    get:
+      operationId: listAvailableProxies
+      tags: [proxies]
+      summary: Browse available proxies (filter & search)
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: country
+          schema: { type: string }
+        - in: query
+          name: type
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Available proxies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableProxy"
+
+  /proxies/countries:
+    get:
+      operationId: listProxyCountries
+      tags: [proxies]
+      summary: List distinct countries with available proxies
+      responses:
+        "200":
+          description: Country list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
   /proxies/my:
     get:
       operationId: getMyProxies
@@ -173,6 +218,75 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UserProxy"
+
+  /cart:
+    get:
+      operationId: getMyCart
+      tags: [cart]
+      summary: Get my active cart reservations
+      responses:
+        "200":
+          description: Cart contents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+
+  /cart/add:
+    post:
+      operationId: addToCart
+      tags: [cart]
+      summary: Reserve a proxy in the cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddToCartBody"
+      responses:
+        "201":
+          description: Reserved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartItem"
+        "409":
+          description: Proxy unavailable
+        "410":
+          description: Proxy gone
+
+  /cart/{id}:
+    delete:
+      operationId: removeFromCart
+      tags: [cart]
+      summary: Release a cart reservation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Removed
+
+  /purchase:
+    post:
+      operationId: purchaseCart
+      tags: [purchase]
+      summary: Convert cart to a pending crypto payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseCartBody"
+      responses:
+        "201":
+          description: Payment + Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseResult"
 
   /usage/stats:
     get:
@@ -474,6 +588,8 @@ components:
           type: string
         planId:
           type: string
+        planName:
+          type: ["string", "null"]
         status:
           type: string
         bandwidthGbTotal:
@@ -524,11 +640,80 @@ components:
           type: string
         country:
           type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        status:
+          type: ["string", "null"]
+        lastCheckedAt:
+          type: ["string", "null"]
         isActive:
           type: boolean
         assignedAt:
           type: string
       required: [id, proxyId, ip, port, username, password, proxyType, isActive, assignedAt]
+
+    AvailableProxy:
+      type: object
+      properties:
+        id: { type: string }
+        ip: { type: string }
+        port: { type: integer }
+        proxyType: { type: string }
+        country: { type: ["string", "null"] }
+        city: { type: ["string", "null"] }
+        isp: { type: ["string", "null"] }
+        latencyMs: { type: ["integer", "null"] }
+        status: { type: string }
+        lastCheckedAt: { type: ["string", "null"] }
+        priceCents: { type: integer }
+      required: [id, ip, port, proxyType, status, priceCents]
+
+    Cart:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        totalCents:
+          type: integer
+        reservationMinutes:
+          type: integer
+      required: [items, totalCents, reservationMinutes]
+
+    CartItem:
+      type: object
+      properties:
+        id: { type: string }
+        proxyId: { type: string }
+        expiresAt: { type: string }
+        createdAt: { type: ["string", "null"] }
+        ip: { type: ["string", "null"] }
+        port: { type: ["integer", "null"] }
+        proxyType: { type: ["string", "null"] }
+        country: { type: ["string", "null"] }
+        city: { type: ["string", "null"] }
+        priceCents: { type: ["integer", "null"] }
+      required: [id, proxyId, expiresAt]
+
+    AddToCartBody:
+      type: object
+      properties:
+        proxyId: { type: string }
+      required: [proxyId]
+
+    PurchaseCartBody:
+      type: object
+      properties:
+        currency: { type: string }
+      required: [currency]
+
+    PurchaseResult:
+      type: object
+      properties:
+        payment: { $ref: "#/components/schemas/Payment" }
+        subscription: { $ref: "#/components/schemas/Subscription" }
+      required: [payment, subscription]
 
     UsageStats:
       type: object

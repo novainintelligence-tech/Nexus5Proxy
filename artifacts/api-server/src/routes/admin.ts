@@ -86,19 +86,45 @@ router.patch("/admin/payments/:id/confirm", requireAdmin, async (req, res): Prom
   if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
   if (payment.status === "confirmed") { res.status(400).json({ error: "Already confirmed" }); return; }
 
+  const now = new Date();
+
+  // ── Cart-purchase flow ─────────────────────────────────────────────────
+  // Cart purchases use planId="cart" and have a pre-created pending subscription
+  // + pre-assigned (inactive) user_proxies rows. We just flip them on.
+  if (payment.planId === "cart") {
+    const [updatedPayment] = await db.update(paymentsTable)
+      .set({ status: "confirmed", confirmedAt: now, adminNote: adminNote ?? null })
+      .where(eq(paymentsTable.id, rawId))
+      .returning();
+
+    const [pendingSub] = await db.select().from(subscriptionsTable)
+      .where(eq(subscriptionsTable.paymentId, rawId)).limit(1);
+
+    if (pendingSub) {
+      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      await db.update(subscriptionsTable)
+        .set({ status: "active", startsAt: now, expiresAt })
+        .where(eq(subscriptionsTable.id, pendingSub.id));
+      await db.update(userProxiesTable)
+        .set({ isActive: true })
+        .where(eq(userProxiesTable.subscriptionId, pendingSub.id));
+      logger.info({ paymentId: rawId, subscriptionId: pendingSub.id }, "Cart payment confirmed");
+    }
+    res.json(updatedPayment);
+    return;
+  }
+
+  // ── Standard plan-purchase flow ────────────────────────────────────────
   const [plan] = await db.select().from(plansTable).where(eq(plansTable.id, payment.planId)).limit(1);
   if (!plan) { res.status(404).json({ error: "Plan not found" }); return; }
 
-  const now = new Date();
   const expiresAt = new Date(now.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
 
-  // Confirm payment
   const [updatedPayment] = await db.update(paymentsTable)
     .set({ status: "confirmed", confirmedAt: now, adminNote: adminNote ?? null })
     .where(eq(paymentsTable.id, rawId))
     .returning();
 
-  // Create or reactivate subscription
   const [existingSub] = await db.select().from(subscriptionsTable)
     .where(and(eq(subscriptionsTable.userId, payment.userId), eq(subscriptionsTable.paymentId, rawId)))
     .limit(1);
@@ -124,7 +150,6 @@ router.patch("/admin/payments/:id/confirm", requireAdmin, async (req, res): Prom
     subscriptionId = sub.id;
   }
 
-  // Assign available proxies
   const neededCount = plan.proxyCount;
   const availableProxies = await db.select().from(proxiesTable)
     .where(and(eq(proxiesTable.isActive, true), eq(proxiesTable.isAssigned, false)))

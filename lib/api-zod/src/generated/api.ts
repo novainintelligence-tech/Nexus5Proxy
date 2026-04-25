@@ -114,6 +114,7 @@ export const ListMySubscriptionsResponseItem = zod.object({
   id: zod.string(),
   userId: zod.string(),
   planId: zod.string(),
+  planName: zod.string().nullish(),
   status: zod.string(),
   bandwidthGbTotal: zod.number(),
   bandwidthUsedMb: zod.number(),
@@ -133,6 +134,7 @@ export const GetActiveSubscriptionResponse = zod.object({
     id: zod.string(),
     userId: zod.string(),
     planId: zod.string(),
+    planName: zod.string().nullish(),
     status: zod.string(),
     bandwidthGbTotal: zod.number(),
     bandwidthUsedMb: zod.number(),
@@ -163,6 +165,9 @@ export const GetActiveSubscriptionResponse = zod.object({
       password: zod.string(),
       proxyType: zod.string(),
       country: zod.string().nullish(),
+      city: zod.string().nullish(),
+      status: zod.string().nullish(),
+      lastCheckedAt: zod.string().nullish(),
       isActive: zod.boolean(),
       assignedAt: zod.string(),
     }),
@@ -170,6 +175,41 @@ export const GetActiveSubscriptionResponse = zod.object({
   remainingHours: zod.number().nullish(),
   bandwidthRemainingMb: zod.number(),
 });
+
+/**
+ * @summary Browse available proxies (filter & search)
+ */
+export const ListAvailableProxiesQueryParams = zod.object({
+  search: zod.coerce.string().optional(),
+  country: zod.coerce.string().optional(),
+  type: zod.coerce.string().optional(),
+  limit: zod.coerce.number().optional(),
+});
+
+export const ListAvailableProxiesResponseItem = zod.object({
+  id: zod.string(),
+  ip: zod.string(),
+  port: zod.number(),
+  proxyType: zod.string(),
+  country: zod.string().nullish(),
+  city: zod.string().nullish(),
+  isp: zod.string().nullish(),
+  latencyMs: zod.number().nullish(),
+  status: zod.string(),
+  lastCheckedAt: zod.string().nullish(),
+  priceCents: zod.number(),
+});
+export const ListAvailableProxiesResponse = zod.array(
+  ListAvailableProxiesResponseItem,
+);
+
+/**
+ * @summary List distinct countries with available proxies
+ */
+export const ListProxyCountriesResponseItem = zod.string();
+export const ListProxyCountriesResponse = zod.array(
+  ListProxyCountriesResponseItem,
+);
 
 /**
  * @summary Get my assigned proxies
@@ -183,10 +223,56 @@ export const GetMyProxiesResponseItem = zod.object({
   password: zod.string(),
   proxyType: zod.string(),
   country: zod.string().nullish(),
+  city: zod.string().nullish(),
+  status: zod.string().nullish(),
+  lastCheckedAt: zod.string().nullish(),
   isActive: zod.boolean(),
   assignedAt: zod.string(),
 });
 export const GetMyProxiesResponse = zod.array(GetMyProxiesResponseItem);
+
+/**
+ * @summary Get my active cart reservations
+ */
+export const GetMyCartResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      proxyId: zod.string(),
+      expiresAt: zod.string(),
+      createdAt: zod.string().nullish(),
+      ip: zod.string().nullish(),
+      port: zod.number().nullish(),
+      proxyType: zod.string().nullish(),
+      country: zod.string().nullish(),
+      city: zod.string().nullish(),
+      priceCents: zod.number().nullish(),
+    }),
+  ),
+  totalCents: zod.number(),
+  reservationMinutes: zod.number(),
+});
+
+/**
+ * @summary Reserve a proxy in the cart
+ */
+export const AddToCartBody = zod.object({
+  proxyId: zod.string(),
+});
+
+/**
+ * @summary Release a cart reservation
+ */
+export const RemoveFromCartParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary Convert cart to a pending crypto payment
+ */
+export const PurchaseCartBody = zod.object({
+  currency: zod.string(),
+});
 
 /**
  * @summary Get my usage statistics

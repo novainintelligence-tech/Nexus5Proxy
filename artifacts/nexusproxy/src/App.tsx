@@ -12,6 +12,14 @@ import { Payment } from "@/pages/Payment";
 import { Proxies } from "@/pages/Proxies";
 import { Usage } from "@/pages/Usage";
 import { Admin } from "@/pages/Admin";
+import { ProxyList } from "@/pages/ProxyList";
+import { ProxySettings } from "@/pages/ProxySettings";
+import { Cart } from "@/pages/Cart";
+import { Stats } from "@/pages/Stats";
+import { Subscription } from "@/pages/Subscription";
+import { Referral } from "@/pages/Referral";
+import { Api } from "@/pages/Api";
+import { Settings } from "@/pages/Settings";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -190,6 +198,23 @@ function ClerkProviderWithRoutes() {
             <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>
             <Route path="/payment"><ProtectedRoute component={Payment} /></Route>
             <Route path="/proxies"><ProtectedRoute component={Proxies} /></Route>
+            <Route path="/proxies/proxy-list"><ProtectedRoute component={ProxyList} /></Route>
+            <Route path="/proxies/proxy-settings"><ProtectedRoute component={ProxySettings} /></Route>
+            <Route path="/proxy-server">
+              <ProtectedRoute component={() => <ProxyList initialType="datacenter" title="Proxy Server" subtitle="Datacenter proxies — high speed, low cost." />} />
+            </Route>
+            <Route path="/static-residential">
+              <ProtectedRoute component={() => <ProxyList initialType="residential" title="Static Residential" subtitle="Static residential IPs assigned to your account." />} />
+            </Route>
+            <Route path="/rotating-residential">
+              <ProtectedRoute component={() => <ProxyList initialType="isp" title="Rotating Residential" subtitle="Rotating ISP / residential pools." />} />
+            </Route>
+            <Route path="/cart"><ProtectedRoute component={Cart} /></Route>
+            <Route path="/stats"><ProtectedRoute component={Stats} /></Route>
+            <Route path="/subscription"><ProtectedRoute component={Subscription} /></Route>
+            <Route path="/referral"><ProtectedRoute component={Referral} /></Route>
+            <Route path="/api"><ProtectedRoute component={Api} /></Route>
+            <Route path="/settings"><ProtectedRoute component={Settings} /></Route>
             <Route path="/usage"><ProtectedRoute component={Usage} /></Route>
             <Route path="/admin"><AdminRoute component={Admin} /></Route>
             <Route>

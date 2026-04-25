@@ -19,19 +19,26 @@ import type {
 import type {
   ActiveSubscription,
   AddProxyBody,
+  AddToCartBody,
   AdminPayment,
   AdminProxy,
   AdminStats,
   AdminUser,
+  AvailableProxy,
   BanUserBody,
   BulkAddProxiesBody,
   BulkAddResult,
+  Cart,
+  CartItem,
   ConfirmPaymentBody,
   CreatePaymentBody,
   CreatePlanBody,
   HealthStatus,
+  ListAvailableProxiesParams,
   Payment,
   Plan,
+  PurchaseCartBody,
+  PurchaseResult,
   SubmitHashBody,
   Subscription,
   UsageStats,
@@ -729,6 +736,181 @@ export function useGetActiveSubscription<
 }
 
 /**
+ * @summary Browse available proxies (filter & search)
+ */
+export const getListAvailableProxiesUrl = (
+  params?: ListAvailableProxiesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/proxies?${stringifiedParams}`
+    : `/api/proxies`;
+};
+
+export const listAvailableProxies = async (
+  params?: ListAvailableProxiesParams,
+  options?: RequestInit,
+): Promise<AvailableProxy[]> => {
+  return customFetch<AvailableProxy[]>(getListAvailableProxiesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAvailableProxiesQueryKey = (
+  params?: ListAvailableProxiesParams,
+) => {
+  return [`/api/proxies`, ...(params ? [params] : [])] as const;
+};
+
+export const getListAvailableProxiesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAvailableProxies>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListAvailableProxiesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAvailableProxies>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListAvailableProxiesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAvailableProxies>>
+  > = ({ signal }) =>
+    listAvailableProxies(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAvailableProxies>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAvailableProxiesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAvailableProxies>>
+>;
+export type ListAvailableProxiesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Browse available proxies (filter & search)
+ */
+
+export function useListAvailableProxies<
+  TData = Awaited<ReturnType<typeof listAvailableProxies>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListAvailableProxiesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAvailableProxies>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAvailableProxiesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List distinct countries with available proxies
+ */
+export const getListProxyCountriesUrl = () => {
+  return `/api/proxies/countries`;
+};
+
+export const listProxyCountries = async (
+  options?: RequestInit,
+): Promise<string[]> => {
+  return customFetch<string[]>(getListProxyCountriesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListProxyCountriesQueryKey = () => {
+  return [`/api/proxies/countries`] as const;
+};
+
+export const getListProxyCountriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listProxyCountries>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listProxyCountries>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListProxyCountriesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listProxyCountries>>
+  > = ({ signal }) => listProxyCountries({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listProxyCountries>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListProxyCountriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listProxyCountries>>
+>;
+export type ListProxyCountriesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List distinct countries with available proxies
+ */
+
+export function useListProxyCountries<
+  TData = Awaited<ReturnType<typeof listProxyCountries>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listProxyCountries>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListProxyCountriesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Get my assigned proxies
  */
 export const getGetMyProxiesUrl = () => {
@@ -802,6 +984,327 @@ export function useGetMyProxies<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get my active cart reservations
+ */
+export const getGetMyCartUrl = () => {
+  return `/api/cart`;
+};
+
+export const getMyCart = async (options?: RequestInit): Promise<Cart> => {
+  return customFetch<Cart>(getGetMyCartUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyCartQueryKey = () => {
+  return [`/api/cart`] as const;
+};
+
+export const getGetMyCartQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyCart>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMyCart>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyCartQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyCart>>> = ({
+    signal,
+  }) => getMyCart({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCart>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyCartQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyCart>>
+>;
+export type GetMyCartQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get my active cart reservations
+ */
+
+export function useGetMyCart<
+  TData = Awaited<ReturnType<typeof getMyCart>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getMyCart>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyCartQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Reserve a proxy in the cart
+ */
+export const getAddToCartUrl = () => {
+  return `/api/cart/add`;
+};
+
+export const addToCart = async (
+  addToCartBody: AddToCartBody,
+  options?: RequestInit,
+): Promise<CartItem> => {
+  return customFetch<CartItem>(getAddToCartUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(addToCartBody),
+  });
+};
+
+export const getAddToCartMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addToCart>>,
+    TError,
+    { data: BodyType<AddToCartBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addToCart>>,
+  TError,
+  { data: BodyType<AddToCartBody> },
+  TContext
+> => {
+  const mutationKey = ["addToCart"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addToCart>>,
+    { data: BodyType<AddToCartBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return addToCart(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddToCartMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addToCart>>
+>;
+export type AddToCartMutationBody = BodyType<AddToCartBody>;
+export type AddToCartMutationError = ErrorType<void>;
+
+/**
+ * @summary Reserve a proxy in the cart
+ */
+export const useAddToCart = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addToCart>>,
+    TError,
+    { data: BodyType<AddToCartBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addToCart>>,
+  TError,
+  { data: BodyType<AddToCartBody> },
+  TContext
+> => {
+  return useMutation(getAddToCartMutationOptions(options));
+};
+
+/**
+ * @summary Release a cart reservation
+ */
+export const getRemoveFromCartUrl = (id: string) => {
+  return `/api/cart/${id}`;
+};
+
+export const removeFromCart = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRemoveFromCartUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getRemoveFromCartMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeFromCart>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeFromCart>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["removeFromCart"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeFromCart>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return removeFromCart(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveFromCartMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeFromCart>>
+>;
+
+export type RemoveFromCartMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Release a cart reservation
+ */
+export const useRemoveFromCart = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeFromCart>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeFromCart>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getRemoveFromCartMutationOptions(options));
+};
+
+/**
+ * @summary Convert cart to a pending crypto payment
+ */
+export const getPurchaseCartUrl = () => {
+  return `/api/purchase`;
+};
+
+export const purchaseCart = async (
+  purchaseCartBody: PurchaseCartBody,
+  options?: RequestInit,
+): Promise<PurchaseResult> => {
+  return customFetch<PurchaseResult>(getPurchaseCartUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(purchaseCartBody),
+  });
+};
+
+export const getPurchaseCartMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof purchaseCart>>,
+    TError,
+    { data: BodyType<PurchaseCartBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof purchaseCart>>,
+  TError,
+  { data: BodyType<PurchaseCartBody> },
+  TContext
+> => {
+  const mutationKey = ["purchaseCart"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof purchaseCart>>,
+    { data: BodyType<PurchaseCartBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return purchaseCart(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PurchaseCartMutationResult = NonNullable<
+  Awaited<ReturnType<typeof purchaseCart>>
+>;
+export type PurchaseCartMutationBody = BodyType<PurchaseCartBody>;
+export type PurchaseCartMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Convert cart to a pending crypto payment
+ */
+export const usePurchaseCart = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof purchaseCart>>,
+    TError,
+    { data: BodyType<PurchaseCartBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof purchaseCart>>,
+  TError,
+  { data: BodyType<PurchaseCartBody> },
+  TContext
+> => {
+  return useMutation(getPurchaseCartMutationOptions(options));
+};
 
 /**
  * @summary Get my usage statistics
