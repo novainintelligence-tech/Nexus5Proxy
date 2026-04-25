@@ -77,7 +77,11 @@ pnpm workspace monorepo using TypeScript.
 
 - **Crypto wallets**: Addresses in `artifacts/api-server/src/lib/crypto-wallets.ts` are placeholders. Set WALLET_BTC, WALLET_USDT_TRC20, WALLET_USDC secrets for real payments.
 - **Admin role**: Promote first user via SQL: `UPDATE users SET role='admin' WHERE email='terry4white1956@gmail.com'`
-- **Payment flow**: Manual — user submits tx hash, admin confirms in admin panel → subscription activates → proxies assigned
+- **Payment flow**: Configurable via `system_settings.auto_confirm_payments`. When OFF (default) admin must approve in panel. When ON, on-chain verification runs at tx-hash submit (BTC blockstream, USDT-TRC20 trongrid, USDC etherscan); failures stay pending with `adminNote: "Needs admin review: ..."`.
+- **Auto-gen creds**: Single-add and bulk-add proxy admin endpoints fill missing username/password via `lib/proxy-creds.ts`. Backfill script: `pnpm tsx artifacts/api-server/src/scripts/backfill-creds.ts`.
+- **Admin edits**: PATCH `/api/admin/proxies/:id` and `/api/admin/subscriptions/:id` allow inline edits via Admin → Proxies / Subs tabs.
+- **OTP autofill**: `useDisableOtpAutofill` in `App.tsx` strips `autocomplete="one-time-code"` from Clerk verification inputs to prevent SMS/email autofill prompts.
+- **Download gating**: Public `/proxies/proxy-list` shows blurred IPs and no download button; only `/proxies` (My Proxies) page has Copy All / Export TXT for confirmed/assigned proxies.
 - **Expiry job**: Runs every 5 minutes, expires subscriptions and revokes proxy access
 - **Base path**: `/nexusproxy` — all routing uses `import.meta.env.BASE_URL`
 - **priceUsd**: Stored in cents (divide by 100 to display)

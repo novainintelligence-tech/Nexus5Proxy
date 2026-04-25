@@ -5,6 +5,9 @@ import { requireAuth, getDbUser } from "../lib/auth";
 import { getCryptoAmount, CRYPTO_WALLETS } from "../lib/crypto-wallets";
 import { generateId } from "../lib/id";
 import { logger } from "../lib/logger";
+import { getSetting } from "../lib/system-settings";
+import { verifyPaymentOnChain } from "../lib/crypto-verify";
+import { confirmPaymentInDb } from "../lib/confirm-payment";
 
 const router = Router();
 
@@ -67,6 +70,36 @@ router.patch("/payments/:id/submit-hash", requireAuth, async (req, res): Promise
     .set({ txHash, status: "pending" })
     .where(eq(paymentsTable.id, rawId))
     .returning();
+
+  // ── Auto-confirm if enabled ─────────────────────────────────────────────
+  const autoConfirm = await getSetting("auto_confirm_payments", false);
+  if (autoConfirm) {
+    try {
+      const result = await verifyPaymentOnChain({
+        currency: payment.currency,
+        txHash,
+        walletAddress: payment.walletAddress ?? "",
+        expectedAmount: payment.cryptoAmount ?? "0",
+      });
+      if (result.verified) {
+        const confirmed = await confirmPaymentInDb(rawId!, "auto-confirmed via on-chain verification");
+        logger.info({ paymentId: rawId, amountReceived: result.amountReceived }, "Auto-confirmed");
+        res.json(confirmed);
+        return;
+      }
+      // Verified=false → leave pending, flag for admin review
+      await db.update(paymentsTable)
+        .set({ adminNote: `Needs admin review: ${result.reason}` })
+        .where(eq(paymentsTable.id, rawId!));
+      logger.warn({ paymentId: rawId, reason: result.reason }, "Auto-confirm failed, needs review");
+    } catch (e: any) {
+      // Network/timeout → flag for admin review
+      await db.update(paymentsTable)
+        .set({ adminNote: `Needs admin review: verification API error (${e?.message ?? "unknown"})` })
+        .where(eq(paymentsTable.id, rawId!));
+      logger.warn({ paymentId: rawId, err: e?.message }, "Auto-confirm API error");
+    }
+  }
 
   res.json(updated);
 });

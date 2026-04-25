@@ -69,17 +69,43 @@ const clerkAppearance = {
   },
 };
 
+/**
+ * Strips iOS/Android OTP autofill from any Clerk verification-code input.
+ * Clerk hardcodes autoComplete="one-time-code" which triggers the SMS/email
+ * autofill bar. Per the user request we disable that and let users type freely.
+ */
+function useDisableOtpAutofill() {
+  useEffect(() => {
+    const stripOtp = (root: ParentNode | Document = document) => {
+      root.querySelectorAll<HTMLInputElement>('input[autocomplete="one-time-code"]').forEach((el) => {
+        el.setAttribute("autocomplete", "off");
+        el.setAttribute("autocorrect", "off");
+        el.setAttribute("autocapitalize", "off");
+        el.setAttribute("spellcheck", "false");
+        el.removeAttribute("inputmode");
+        el.removeAttribute("name");
+      });
+    };
+    stripOtp();
+    const obs = new MutationObserver(() => stripOtp());
+    obs.observe(document.body, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, []);
+}
+
 function SignInPage() {
+  useDisableOtpAutofill();
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-8">
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
     </div>
   );
 }
 
 function SignUpPage() {
+  useDisableOtpAutofill();
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-8">
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
     </div>
   );

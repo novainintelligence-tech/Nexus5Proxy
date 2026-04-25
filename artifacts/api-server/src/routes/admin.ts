@@ -8,6 +8,9 @@ import { requireAdmin } from "../lib/auth";
 import { getCryptoAmount, CRYPTO_WALLETS } from "../lib/crypto-wallets";
 import { generateId } from "../lib/id";
 import { logger } from "../lib/logger";
+import { generateProxyUsername, generateProxyPassword } from "../lib/proxy-creds";
+import { getSetting, setSetting } from "../lib/system-settings";
+import { confirmPaymentInDb } from "../lib/confirm-payment";
 
 const router = Router();
 
@@ -82,93 +85,16 @@ router.patch("/admin/payments/:id/confirm", requireAdmin, async (req, res): Prom
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { adminNote } = req.body;
 
-  const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, rawId)).limit(1);
+  const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, rawId!)).limit(1);
   if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
   if (payment.status === "confirmed") { res.status(400).json({ error: "Already confirmed" }); return; }
 
-  const now = new Date();
-
-  // ── Cart-purchase flow ─────────────────────────────────────────────────
-  // Cart purchases use planId="cart" and have a pre-created pending subscription
-  // + pre-assigned (inactive) user_proxies rows. We just flip them on.
-  if (payment.planId === "cart") {
-    const [updatedPayment] = await db.update(paymentsTable)
-      .set({ status: "confirmed", confirmedAt: now, adminNote: adminNote ?? null })
-      .where(eq(paymentsTable.id, rawId))
-      .returning();
-
-    const [pendingSub] = await db.select().from(subscriptionsTable)
-      .where(eq(subscriptionsTable.paymentId, rawId)).limit(1);
-
-    if (pendingSub) {
-      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      await db.update(subscriptionsTable)
-        .set({ status: "active", startsAt: now, expiresAt })
-        .where(eq(subscriptionsTable.id, pendingSub.id));
-      await db.update(userProxiesTable)
-        .set({ isActive: true })
-        .where(eq(userProxiesTable.subscriptionId, pendingSub.id));
-      logger.info({ paymentId: rawId, subscriptionId: pendingSub.id }, "Cart payment confirmed");
-    }
-    res.json(updatedPayment);
-    return;
+  try {
+    const updated = await confirmPaymentInDb(rawId!, adminNote ?? null);
+    res.json(updated);
+  } catch (e: any) {
+    res.status(400).json({ error: e?.message ?? "Confirmation failed" });
   }
-
-  // ── Standard plan-purchase flow ────────────────────────────────────────
-  const [plan] = await db.select().from(plansTable).where(eq(plansTable.id, payment.planId)).limit(1);
-  if (!plan) { res.status(404).json({ error: "Plan not found" }); return; }
-
-  const expiresAt = new Date(now.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
-
-  const [updatedPayment] = await db.update(paymentsTable)
-    .set({ status: "confirmed", confirmedAt: now, adminNote: adminNote ?? null })
-    .where(eq(paymentsTable.id, rawId))
-    .returning();
-
-  const [existingSub] = await db.select().from(subscriptionsTable)
-    .where(and(eq(subscriptionsTable.userId, payment.userId), eq(subscriptionsTable.paymentId, rawId)))
-    .limit(1);
-
-  let subscriptionId: string;
-  if (existingSub) {
-    await db.update(subscriptionsTable)
-      .set({ status: "active", startsAt: now, expiresAt, bandwidthUsedMb: 0 })
-      .where(eq(subscriptionsTable.id, existingSub.id));
-    subscriptionId = existingSub.id;
-  } else {
-    const [sub] = await db.insert(subscriptionsTable).values({
-      id: generateId("sub"),
-      userId: payment.userId,
-      planId: payment.planId,
-      paymentId: rawId,
-      status: "active",
-      bandwidthGbTotal: plan.bandwidthGb,
-      bandwidthUsedMb: 0,
-      startsAt: now,
-      expiresAt,
-    }).returning();
-    subscriptionId = sub.id;
-  }
-
-  const neededCount = plan.proxyCount;
-  const availableProxies = await db.select().from(proxiesTable)
-    .where(and(eq(proxiesTable.isActive, true), eq(proxiesTable.isAssigned, false)))
-    .limit(neededCount);
-
-  for (const proxy of availableProxies) {
-    await db.insert(userProxiesTable).values({
-      id: generateId("up"),
-      userId: payment.userId,
-      proxyId: proxy.id,
-      subscriptionId,
-      isActive: true,
-    });
-    await db.update(proxiesTable).set({ isAssigned: true }).where(eq(proxiesTable.id, proxy.id));
-  }
-
-  logger.info({ paymentId: rawId, subscriptionId, proxiesAssigned: availableProxies.length }, "Payment confirmed");
-
-  res.json(updatedPayment);
 });
 
 // ── Proxies ─────────────────────────────────────────────────────────────────
@@ -178,14 +104,20 @@ router.get("/admin/proxies", requireAdmin, async (_req, res): Promise<void> => {
 });
 
 router.post("/admin/proxies", requireAdmin, async (req, res): Promise<void> => {
-  const { ip, port, username, password, proxyType, country } = req.body;
-  if (!ip || !port || !username || !password || !proxyType) {
-    res.status(400).json({ error: "ip, port, username, password, proxyType required" }); return;
+  const { ip, port, username, password, proxyType, country, city, isp, priceCents } = req.body;
+  if (!ip || !port || !proxyType) {
+    res.status(400).json({ error: "ip, port, proxyType required" }); return;
   }
   const [proxy] = await db.insert(proxiesTable).values({
     id: generateId("prx"),
-    ip, port: Number(port), username, password, proxyType,
+    ip, port: Number(port),
+    username: username || generateProxyUsername(),
+    password: password || generateProxyPassword(),
+    proxyType,
     country: country ?? null,
+    city: city ?? null,
+    isp: isp ?? null,
+    priceCents: priceCents ?? 150,
   }).returning();
   res.status(201).json(proxy);
 });
@@ -201,13 +133,18 @@ router.post("/admin/proxies/bulk", requireAdmin, async (req, res): Promise<void>
 
   for (const line of lines) {
     const parts = line.split(":");
-    if (parts.length < 4) { errors.push(`Invalid format: ${line}`); skipped++; continue; }
+    if (parts.length < 2) { errors.push(`Invalid format: ${line}`); skipped++; continue; }
     const [ip, portStr, username, password] = parts;
-    const port = parseInt(portStr, 10);
+    const port = parseInt(portStr!, 10);
     if (isNaN(port)) { errors.push(`Invalid port: ${line}`); skipped++; continue; }
     try {
       await db.insert(proxiesTable).values({
-        id: generateId("prx"), ip, port, username, password, proxyType,
+        id: generateId("prx"),
+        ip: ip!,
+        port,
+        username: username || generateProxyUsername(),
+        password: password || generateProxyPassword(),
+        proxyType,
       });
       added++;
     } catch (e: any) {
@@ -218,10 +155,58 @@ router.post("/admin/proxies/bulk", requireAdmin, async (req, res): Promise<void>
   res.status(201).json({ added, skipped, errors });
 });
 
+router.patch("/admin/proxies/:id", requireAdmin, async (req, res): Promise<void> => {
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const allowed = ["ip","port","username","password","proxyType","country","city","isp","priceCents","status","isActive","isAssigned","latencyMs"];
+  const patch: Record<string, any> = {};
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) patch[k] = req.body[k];
+  }
+  if (Object.keys(patch).length === 0) { res.status(400).json({ error: "No valid fields" }); return; }
+  if (patch.port !== undefined) patch.port = Number(patch.port);
+  const [updated] = await db.update(proxiesTable).set(patch).where(eq(proxiesTable.id, rawId!)).returning();
+  if (!updated) { res.status(404).json({ error: "Proxy not found" }); return; }
+  res.json(updated);
+});
+
 router.delete("/admin/proxies/:id", requireAdmin, async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  await db.update(proxiesTable).set({ isActive: false }).where(eq(proxiesTable.id, rawId));
+  await db.update(proxiesTable).set({ isActive: false }).where(eq(proxiesTable.id, rawId!));
   res.json({ ok: true });
+});
+
+// ── Subscriptions ───────────────────────────────────────────────────────────
+router.get("/admin/subscriptions", requireAdmin, async (_req, res): Promise<void> => {
+  const subs = await db.select().from(subscriptionsTable);
+  res.json(subs);
+});
+
+router.patch("/admin/subscriptions/:id", requireAdmin, async (req, res): Promise<void> => {
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const allowed = ["status","bandwidthGbTotal","bandwidthUsedMb","expiresAt"];
+  const patch: Record<string, any> = {};
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) patch[k] = req.body[k];
+  }
+  if (patch.expiresAt) patch.expiresAt = new Date(patch.expiresAt);
+  if (Object.keys(patch).length === 0) { res.status(400).json({ error: "No valid fields" }); return; }
+  const [updated] = await db.update(subscriptionsTable).set(patch).where(eq(subscriptionsTable.id, rawId!)).returning();
+  if (!updated) { res.status(404).json({ error: "Subscription not found" }); return; }
+  res.json(updated);
+});
+
+// ── System Settings ─────────────────────────────────────────────────────────
+router.get("/admin/settings", requireAdmin, async (_req, res): Promise<void> => {
+  const autoConfirm = await getSetting("auto_confirm_payments", false);
+  res.json({ autoConfirmPayments: autoConfirm });
+});
+
+router.patch("/admin/settings", requireAdmin, async (req, res): Promise<void> => {
+  if (req.body.autoConfirmPayments !== undefined) {
+    await setSetting("auto_confirm_payments", !!req.body.autoConfirmPayments);
+  }
+  const autoConfirm = await getSetting("auto_confirm_payments", false);
+  res.json({ autoConfirmPayments: autoConfirm });
 });
 
 // ── Plans ───────────────────────────────────────────────────────────────────

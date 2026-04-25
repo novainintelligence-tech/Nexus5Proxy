@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldAlert, Users, CreditCard, Server, Activity, Plus, RefreshCw, Trash2, Ban } from "lucide-react";
+import { ShieldAlert, Users, CreditCard, Server, Activity, Plus, RefreshCw, Trash2, Ban, CheckCircle2, Pencil, Settings as SettingsIcon, Zap, AlertTriangle } from "lucide-react";
 import {
   useAdminGetStats,
   useAdminListUsers,
@@ -17,17 +17,25 @@ import {
   useAdminListPayments,
   useAdminConfirmPayment,
   useAdminListProxies,
-  useAdminAddProxy,
   useAdminBulkAddProxies,
   useAdminDeleteProxy,
+  useAdminUpdateProxy,
+  useAdminListSubscriptions,
+  useAdminUpdateSubscription,
+  useAdminGetSettings,
+  useAdminUpdateSettings,
   useAdminCreatePlan,
   useListPlans,
   getAdminListUsersQueryKey,
   getAdminListPaymentsQueryKey,
   getAdminListProxiesQueryKey,
+  getAdminListSubscriptionsQueryKey,
+  getAdminGetSettingsQueryKey,
   getListPlansQueryKey,
   getAdminGetStatsQueryKey
 } from "@workspace/api-client-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { queryClient } from "../lib/queryClient";
 
 export function Admin() {
@@ -44,19 +52,23 @@ export function Admin() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-card border border-border">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="proxies">Proxies</TabsTrigger>
-          <TabsTrigger value="plans">Plans</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 bg-card border border-border h-auto">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="users" className="text-xs sm:text-sm">Users</TabsTrigger>
+          <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
+          <TabsTrigger value="proxies" className="text-xs sm:text-sm">Proxies</TabsTrigger>
+          <TabsTrigger value="subscriptions" className="text-xs sm:text-sm">Subs</TabsTrigger>
+          <TabsTrigger value="plans" className="text-xs sm:text-sm">Plans</TabsTrigger>
+          <TabsTrigger value="settings" className="text-xs sm:text-sm">Settings</TabsTrigger>
         </TabsList>
         <div className="mt-6">
           <TabsContent value="overview"><OverviewTab /></TabsContent>
           <TabsContent value="users"><UsersTab /></TabsContent>
           <TabsContent value="payments"><PaymentsTab /></TabsContent>
           <TabsContent value="proxies"><ProxiesTab /></TabsContent>
+          <TabsContent value="subscriptions"><SubscriptionsTab /></TabsContent>
           <TabsContent value="plans"><PlansTab /></TabsContent>
+          <TabsContent value="settings"><SettingsTab /></TabsContent>
         </div>
       </Tabs>
     </div>
@@ -291,10 +303,38 @@ function ProxiesTab() {
   const { data: proxies, isLoading } = useAdminListProxies();
   const bulkAdd = useAdminBulkAddProxies();
   const deleteProxy = useAdminDeleteProxy();
+  const updateProxy = useAdminUpdateProxy();
   const { toast } = useToast();
-  
+
   const [bulkText, setBulkText] = useState("");
   const [bulkType, setBulkType] = useState("residential");
+  const [editing, setEditing] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState<Record<string, any>>({});
+
+  const openEdit = (p: any) => {
+    setEditing(p);
+    setEditForm({
+      ip: p.ip, port: p.port, username: p.username, password: p.password,
+      proxyType: p.proxyType, country: p.country ?? "", city: p.city ?? "",
+      isp: p.isp ?? "", priceCents: p.priceCents ?? 150,
+      status: p.status ?? "working", isActive: p.isActive,
+    });
+  };
+
+  const saveEdit = () => {
+    if (!editing) return;
+    updateProxy.mutate(
+      { id: editing.id, data: editForm },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getAdminListProxiesQueryKey() });
+          toast({ title: "Proxy updated" });
+          setEditing(null);
+        },
+        onError: () => toast({ title: "Update failed", variant: "destructive" }),
+      },
+    );
+  };
 
   const handleBulkSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -399,11 +439,16 @@ function ProxiesTab() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {!proxy.isAssigned && (
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(proxy.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                          <Trash2 className="w-4 h-4" />
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(proxy)} className="hover:text-primary">
+                          <Pencil className="w-4 h-4" />
                         </Button>
-                      )}
+                        {!proxy.isAssigned && (
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(proxy.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -412,6 +457,259 @@ function ProxiesTab() {
           </div>
           <div className="p-2 text-xs text-muted-foreground text-center border-t border-border">
             Showing up to 100 recent proxies.
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Edit Proxy</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <div className="space-y-1.5"><Label className="text-xs">IP</Label><Input value={editForm.ip ?? ""} onChange={(e) => setEditForm({ ...editForm, ip: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">Port</Label><Input type="number" value={editForm.port ?? ""} onChange={(e) => setEditForm({ ...editForm, port: Number(e.target.value) })} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">Username</Label><Input value={editForm.username ?? ""} onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">Password</Label><Input value={editForm.password ?? ""} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">Type</Label>
+              <Select value={editForm.proxyType ?? "residential"} onValueChange={(v) => setEditForm({ ...editForm, proxyType: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="residential">Residential</SelectItem>
+                  <SelectItem value="datacenter">Datacenter</SelectItem>
+                  <SelectItem value="isp">ISP</SelectItem>
+                  <SelectItem value="mobile">Mobile</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label className="text-xs">Status</Label>
+              <Select value={editForm.status ?? "working"} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="working">Working</SelectItem>
+                  <SelectItem value="degraded">Degraded</SelectItem>
+                  <SelectItem value="offline">Offline</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label className="text-xs">Country</Label><Input value={editForm.country ?? ""} onChange={(e) => setEditForm({ ...editForm, country: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">City</Label><Input value={editForm.city ?? ""} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">ISP</Label><Input value={editForm.isp ?? ""} onChange={(e) => setEditForm({ ...editForm, isp: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">Price (cents)</Label><Input type="number" value={editForm.priceCents ?? 0} onChange={(e) => setEditForm({ ...editForm, priceCents: Number(e.target.value) })} /></div>
+            <div className="col-span-2 flex items-center justify-between rounded border border-border p-3">
+              <Label className="text-sm">Active</Label>
+              <Switch checked={!!editForm.isActive} onCheckedChange={(v) => setEditForm({ ...editForm, isActive: v })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={updateProxy.isPending}>
+              {updateProxy.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function SubscriptionsTab() {
+  const { data: subs, isLoading } = useAdminListSubscriptions();
+  const update = useAdminUpdateSubscription();
+  const { toast } = useToast();
+  const [editing, setEditing] = useState<any | null>(null);
+  const [form, setForm] = useState<Record<string, any>>({});
+
+  const openEdit = (s: any) => {
+    setEditing(s);
+    setForm({
+      status: s.status,
+      bandwidthGbTotal: s.bandwidthGbTotal,
+      bandwidthUsedMb: s.bandwidthUsedMb,
+      expiresAt: s.expiresAt ? new Date(s.expiresAt).toISOString().slice(0, 16) : "",
+    });
+  };
+
+  const save = () => {
+    if (!editing) return;
+    const payload: any = { ...form };
+    if (payload.expiresAt) payload.expiresAt = new Date(payload.expiresAt).toISOString();
+    update.mutate(
+      { id: editing.id, data: payload },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getAdminListSubscriptionsQueryKey() });
+          toast({ title: "Subscription updated" });
+          setEditing(null);
+        },
+        onError: () => toast({ title: "Update failed", variant: "destructive" }),
+      },
+    );
+  };
+
+  if (isLoading) return <div className="h-64 flex items-center justify-center"><RefreshCw className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>All Subscriptions</CardTitle>
+        <CardDescription>Edit any active or expired subscription.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User ID</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Bandwidth</TableHead>
+                <TableHead>Expires</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(subs ?? []).map((s: any) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-mono text-xs">{s.userId}</TableCell>
+                  <TableCell className="text-xs">{s.planId}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={
+                      s.status === "active" ? "bg-green-500/10 text-green-500 border-green-500/30" :
+                      s.status === "pending" ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/30" :
+                      "bg-muted text-muted-foreground"
+                    }>{s.status}</Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {(s.bandwidthUsedMb / 1024).toFixed(1)} / {s.bandwidthGbTotal} GB
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="w-4 h-4" /></Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!subs?.length && (
+                <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">No subscriptions yet.</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Edit Subscription</DialogTitle></DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status</Label>
+                <Select value={form.status ?? ""} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label className="text-xs">Bandwidth Total (GB)</Label>
+                  <Input type="number" value={form.bandwidthGbTotal ?? 0} onChange={(e) => setForm({ ...form, bandwidthGbTotal: Number(e.target.value) })} />
+                </div>
+                <div className="space-y-1.5"><Label className="text-xs">Bandwidth Used (MB)</Label>
+                  <Input type="number" value={form.bandwidthUsedMb ?? 0} onChange={(e) => setForm({ ...form, bandwidthUsedMb: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Expires At</Label>
+                <Input type="datetime-local" value={form.expiresAt ?? ""} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+              <Button onClick={save} disabled={update.isPending}>
+                {update.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SettingsTab() {
+  const { data: settings, isLoading } = useAdminGetSettings();
+  const update = useAdminUpdateSettings();
+  const { toast } = useToast();
+
+  const toggle = (next: boolean) => {
+    update.mutate(
+      { data: { autoConfirmPayments: next } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getAdminGetSettingsQueryKey() });
+          toast({
+            title: next ? "Auto-confirm enabled" : "Manual confirm enabled",
+            description: next
+              ? "New payments will be verified on-chain automatically."
+              : "All payments require manual approval.",
+          });
+        },
+      },
+    );
+  };
+
+  if (isLoading) return <div className="h-64 flex items-center justify-center"><RefreshCw className="w-8 h-8 animate-spin text-primary" /></div>;
+  const auto = !!settings?.autoConfirmPayments;
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><SettingsIcon className="w-5 h-5 text-primary" /> Payment Confirmation</CardTitle>
+          <CardDescription>Choose how incoming crypto payments are processed.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border border-border p-4">
+            <div className="flex-1 pr-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="w-4 h-4 text-primary" />
+                <Label className="text-sm font-medium">Auto-confirm payments</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                When a user submits a tx hash, NexusProxy queries the public chain explorer
+                (BTC: blockstream.info, USDT-TRC20: trongrid, USDC: etherscan).
+                Verified payments are confirmed instantly. Anything that fails verification stays
+                pending and is flagged for your manual review.
+              </p>
+            </div>
+            <Switch checked={auto} onCheckedChange={toggle} disabled={update.isPending} />
+          </div>
+
+          <div className={`rounded-lg border p-4 flex items-start gap-3 ${auto ? "border-primary/30 bg-primary/5" : "border-yellow-500/30 bg-yellow-500/5"}`}>
+            {auto ? (
+              <>
+                <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <div className="font-medium text-primary mb-0.5">Auto-confirm is ON</div>
+                  <p className="text-muted-foreground">
+                    Failed verifications appear in <strong>Payments</strong> with a <em>"Needs admin review"</em> note.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <div className="font-medium text-yellow-500 mb-0.5">Manual mode</div>
+                  <p className="text-muted-foreground">
+                    Every payment must be approved from the <strong>Payments</strong> tab.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -573,6 +871,3 @@ function PlansTab() {
     </div>
   );
 }
-
-// Add CheckCircle2 import missing at the top
-import { CheckCircle2 } from "lucide-react";

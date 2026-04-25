@@ -251,6 +251,30 @@ export interface AdminStats {
   totalRevenueCents: number;
 }
 
+export interface SystemSettings {
+  autoConfirmPayments: boolean;
+}
+
+export interface Proxy {
+  id: string;
+  ip: string;
+  port: number;
+  username: string;
+  password: string;
+  proxyType: string;
+  /** @nullable */
+  country?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  isp?: string | null;
+  priceCents?: number;
+  status?: string;
+  isActive?: boolean;
+  isAssigned?: boolean;
+  [key: string]: unknown;
+}
+
 export interface CreatePlanBody {
   id: string;
   name: string;
@@ -270,3 +294,7 @@ export type ListAvailableProxiesParams = {
   type?: string;
   limit?: number;
 };
+
+export type AdminUpdateProxyBody = { [key: string]: unknown };
+
+export type AdminUpdateSubscriptionBody = { [key: string]: unknown };

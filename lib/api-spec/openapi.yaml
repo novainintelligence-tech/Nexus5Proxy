@@ -433,6 +433,30 @@ paths:
                 $ref: "#/components/schemas/BulkAddResult"
 
   /admin/proxies/{id}:
+    patch:
+      operationId: adminUpdateProxy
+      tags: [admin]
+      summary: Update a proxy (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Updated proxy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proxy"
     delete:
       operationId: adminDeleteProxy
       tags: [admin]
@@ -446,6 +470,77 @@ paths:
       responses:
         "200":
           description: Proxy deleted
+
+  /admin/subscriptions:
+    get:
+      operationId: adminListSubscriptions
+      tags: [admin]
+      summary: List all subscriptions (admin only)
+      responses:
+        "200":
+          description: All subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subscription"
+
+  /admin/subscriptions/{id}:
+    patch:
+      operationId: adminUpdateSubscription
+      tags: [admin]
+      summary: Update a subscription (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Updated subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+
+  /admin/settings:
+    get:
+      operationId: adminGetSettings
+      tags: [admin]
+      summary: Get system settings (admin only)
+      responses:
+        "200":
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettings"
+    patch:
+      operationId: adminUpdateSettings
+      tags: [admin]
+      summary: Update system settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemSettings"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettings"
 
   /admin/stats:
     get:
@@ -867,6 +962,45 @@ components:
         totalRevenueCents:
           type: integer
       required: [totalUsers, activeSubscriptions, pendingPayments, totalProxies, assignedProxies, totalRevenueCents]
+
+    SystemSettings:
+      type: object
+      properties:
+        autoConfirmPayments:
+          type: boolean
+      required: [autoConfirmPayments]
+
+    Proxy:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        ip:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        password:
+          type: string
+        proxyType:
+          type: string
+        country:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        isp:
+          type: ["string", "null"]
+        priceCents:
+          type: integer
+        status:
+          type: string
+        isActive:
+          type: boolean
+        isAssigned:
+          type: boolean
+      required: [id, ip, port, username, password, proxyType]
 
     CreatePlanBody:
       type: object

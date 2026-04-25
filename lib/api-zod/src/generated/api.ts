@@ -403,10 +403,97 @@ export const AdminBulkAddProxiesBody = zod.object({
 });
 
 /**
+ * @summary Update a proxy (admin only)
+ */
+export const AdminUpdateProxyParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const AdminUpdateProxyBody = zod.record(zod.string(), zod.unknown());
+
+export const AdminUpdateProxyResponse = zod.object({
+  id: zod.string(),
+  ip: zod.string(),
+  port: zod.number(),
+  username: zod.string(),
+  password: zod.string(),
+  proxyType: zod.string(),
+  country: zod.string().nullish(),
+  city: zod.string().nullish(),
+  isp: zod.string().nullish(),
+  priceCents: zod.number().optional(),
+  status: zod.string().optional(),
+  isActive: zod.boolean().optional(),
+  isAssigned: zod.boolean().optional(),
+});
+
+/**
  * @summary Delete a proxy (admin only)
  */
 export const AdminDeleteProxyParams = zod.object({
   id: zod.coerce.string(),
+});
+
+/**
+ * @summary List all subscriptions (admin only)
+ */
+export const AdminListSubscriptionsResponseItem = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  planId: zod.string(),
+  planName: zod.string().nullish(),
+  status: zod.string(),
+  bandwidthGbTotal: zod.number(),
+  bandwidthUsedMb: zod.number(),
+  startsAt: zod.string().nullish(),
+  expiresAt: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+export const AdminListSubscriptionsResponse = zod.array(
+  AdminListSubscriptionsResponseItem,
+);
+
+/**
+ * @summary Update a subscription (admin only)
+ */
+export const AdminUpdateSubscriptionParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const AdminUpdateSubscriptionBody = zod.record(
+  zod.string(),
+  zod.unknown(),
+);
+
+export const AdminUpdateSubscriptionResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  planId: zod.string(),
+  planName: zod.string().nullish(),
+  status: zod.string(),
+  bandwidthGbTotal: zod.number(),
+  bandwidthUsedMb: zod.number(),
+  startsAt: zod.string().nullish(),
+  expiresAt: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Get system settings (admin only)
+ */
+export const AdminGetSettingsResponse = zod.object({
+  autoConfirmPayments: zod.boolean(),
+});
+
+/**
+ * @summary Update system settings (admin only)
+ */
+export const AdminUpdateSettingsBody = zod.object({
+  autoConfirmPayments: zod.boolean(),
+});
+
+export const AdminUpdateSettingsResponse = zod.object({
+  autoConfirmPayments: zod.boolean(),
 });
 
 /**

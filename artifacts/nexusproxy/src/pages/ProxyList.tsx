@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, ShoppingCart, RefreshCw, Download, List, CheckCircle2 } from "lucide-react";
+import { Search, ShoppingCart, RefreshCw, List, CheckCircle2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -62,18 +62,6 @@ export function ProxyList({ initialType, title = "Proxy List", subtitle }: Props
     }
   };
 
-  const downloadList = () => {
-    if (!proxies?.length) return;
-    const text = proxies.map((p) => `${p.ip}:${p.port}`).join("\n");
-    const blob = new Blob([text], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "available_proxies.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -91,10 +79,10 @@ export function ProxyList({ initialType, title = "Proxy List", subtitle }: Props
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isFetching ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={downloadList} disabled={!proxies?.length}>
-            <Download className="w-3.5 h-3.5 mr-1.5" />
-            Download
-          </Button>
+          <div className="text-xs text-muted-foreground hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-muted/30">
+            <Lock className="w-3 h-3 text-primary" />
+            Download unlocks after purchase
+          </div>
         </div>
       </div>
 
@@ -160,7 +148,12 @@ export function ProxyList({ initialType, title = "Proxy List", subtitle }: Props
                     const inCart = cartProxyIds.has(p.id);
                     return (
                       <TableRow key={p.id} className="hover:bg-muted/20">
-                        <TableCell className="font-mono text-xs">{p.ip}:{p.port}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <Lock className="w-3 h-3 text-muted-foreground/60" />
+                            <span className="blur-[3px] select-none">{p.ip}</span>:{p.port}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="uppercase text-[10px] tracking-wider bg-primary/5 text-primary border-primary/20">
                             {p.proxyType}
