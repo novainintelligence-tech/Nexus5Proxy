@@ -226,4 +226,29 @@ router.post("/admin/plans", requireAdmin, async (req, res): Promise<void> => {
   res.status(201).json(plan);
 });
 
+router.patch("/admin/plans/:id", requireAdmin, async (req, res): Promise<void> => {
+  const id = String(req.params.id);
+  const allowed: Record<string, any> = {};
+  const fields = [
+    "name", "description", "planType", "priceUsd", "bandwidthGb",
+    "proxyCount", "durationDays", "proxyTypes", "features", "isActive",
+  ];
+  for (const f of fields) {
+    if (req.body[f] !== undefined) allowed[f] = req.body[f];
+  }
+  if (Object.keys(allowed).length === 0) {
+    res.status(400).json({ error: "No editable fields supplied" }); return;
+  }
+  const [updated] = await db.update(plansTable).set(allowed).where(eq(plansTable.id, id)).returning();
+  if (!updated) { res.status(404).json({ error: "Plan not found" }); return; }
+  res.json(updated);
+});
+
+router.delete("/admin/plans/:id", requireAdmin, async (req, res): Promise<void> => {
+  const id = String(req.params.id);
+  const [deleted] = await db.delete(plansTable).where(eq(plansTable.id, id)).returning();
+  if (!deleted) { res.status(404).json({ error: "Plan not found" }); return; }
+  res.json({ success: true, id: deleted.id });
+});
+
 export default router;

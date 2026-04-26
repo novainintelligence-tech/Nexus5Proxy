@@ -224,7 +224,7 @@ function ClerkProviderWithRoutes() {
             <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>
             <Route path="/payment"><ProtectedRoute component={Payment} /></Route>
             <Route path="/proxies"><ProtectedRoute component={Proxies} /></Route>
-            <Route path="/proxies/proxy-list"><ProtectedRoute component={ProxyList} /></Route>
+            <Route path="/proxies/proxy-list"><ProtectedRoute component={Proxies} /></Route>
             <Route path="/proxies/proxy-settings"><ProtectedRoute component={ProxySettings} /></Route>
             <Route path="/proxy-server">
               <ProtectedRoute component={() => <ProxyList initialType="datacenter" title="Proxy Server" subtitle="Datacenter proxies — high speed, low cost." />} />

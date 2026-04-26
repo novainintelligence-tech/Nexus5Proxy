@@ -79,10 +79,6 @@ export function ProxyList({ initialType, title = "Proxy List", subtitle }: Props
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isFetching ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <div className="text-xs text-muted-foreground hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-muted/30">
-            <Lock className="w-3 h-3 text-primary" />
-            Download unlocks after purchase
-          </div>
         </div>
       </div>
 

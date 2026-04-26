@@ -25,6 +25,8 @@ import {
   useAdminGetSettings,
   useAdminUpdateSettings,
   useAdminCreatePlan,
+  useAdminUpdatePlan,
+  useAdminDeletePlan,
   useListPlans,
   getAdminListUsersQueryKey,
   getAdminListPaymentsQueryKey,
@@ -833,41 +835,204 @@ function PlansTab() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Active Plans</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Proxies</TableHead>
-                <TableHead>Bandwidth</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {plans?.map(plan => (
-                <TableRow key={plan.id}>
-                  <TableCell className="font-mono text-xs">{plan.id}</TableCell>
-                  <TableCell className="font-medium">{plan.name}</TableCell>
-                  <TableCell>${(plan.priceUsd / 100).toFixed(2)}</TableCell>
-                  <TableCell>{plan.proxyCount}</TableCell>
-                  <TableCell>{plan.bandwidthGb} GB</TableCell>
-                  <TableCell>
-                    <Badge variant={plan.isActive ? 'default' : 'secondary'} className={plan.isActive ? "bg-green-500/20 text-green-500" : ""}>
-                      {plan.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ActivePlansCard plans={plans ?? []} />
     </div>
+  );
+}
+
+function ActivePlansCard({ plans }: { plans: any[] }) {
+  const { toast } = useToast();
+  const updatePlan = useAdminUpdatePlan();
+  const deletePlan = useAdminDeletePlan();
+  const [editing, setEditing] = useState<any | null>(null);
+  const [form, setForm] = useState<any>({});
+
+  const openEdit = (plan: any) => {
+    setEditing(plan);
+    setForm({
+      name: plan.name ?? "",
+      description: plan.description ?? "",
+      priceUsd: String((plan.priceUsd ?? 0) / 100),
+      bandwidthGb: String(plan.bandwidthGb ?? 0),
+      proxyCount: String(plan.proxyCount ?? 0),
+      durationDays: String(plan.durationDays ?? 0),
+      proxyTypes: (plan.proxyTypes ?? []).join(","),
+      features: (plan.features ?? []).join(","),
+      isActive: !!plan.isActive,
+    });
+  };
+
+  const saveEdit = () => {
+    if (!editing) return;
+    updatePlan.mutate(
+      {
+        id: editing.id,
+        data: {
+          name: form.name,
+          description: form.description || null,
+          priceUsd: Math.round(parseFloat(form.priceUsd || "0") * 100),
+          bandwidthGb: parseInt(form.bandwidthGb || "0"),
+          proxyCount: parseInt(form.proxyCount || "0"),
+          durationDays: parseInt(form.durationDays || "0"),
+          proxyTypes: String(form.proxyTypes).split(",").map((s: string) => s.trim()).filter(Boolean),
+          features: String(form.features).split(",").map((s: string) => s.trim()).filter(Boolean),
+          isActive: !!form.isActive,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListPlansQueryKey() });
+          toast({ title: "Plan Updated" });
+          setEditing(null);
+        },
+        onError: (e: any) =>
+          toast({ title: "Update failed", description: e?.message ?? "Server error", variant: "destructive" }),
+      }
+    );
+  };
+
+  const toggleActive = (plan: any) => {
+    updatePlan.mutate(
+      { id: plan.id, data: { isActive: !plan.isActive } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListPlansQueryKey() });
+          toast({ title: plan.isActive ? "Plan deactivated" : "Plan activated" });
+        },
+      }
+    );
+  };
+
+  const remove = (plan: any) => {
+    if (!confirm(`Delete plan "${plan.name}"? This cannot be undone.`)) return;
+    deletePlan.mutate(
+      { id: plan.id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListPlansQueryKey() });
+          toast({ title: "Plan deleted" });
+        },
+        onError: (e: any) =>
+          toast({ title: "Delete failed", description: e?.message ?? "Server error", variant: "destructive" }),
+      }
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Active Plans</CardTitle>
+        <CardDescription>Edit pricing, capacity, and toggle plans on or off.</CardDescription>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Proxies</TableHead>
+              <TableHead>Bandwidth</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {plans.map((plan: any) => (
+              <TableRow key={plan.id}>
+                <TableCell className="font-mono text-xs">{plan.id}</TableCell>
+                <TableCell className="font-medium">{plan.name}</TableCell>
+                <TableCell>${(plan.priceUsd / 100).toFixed(2)}</TableCell>
+                <TableCell>{plan.proxyCount}</TableCell>
+                <TableCell>{plan.bandwidthGb} GB</TableCell>
+                <TableCell>
+                  <Badge variant={plan.isActive ? "default" : "secondary"} className={plan.isActive ? "bg-green-500/20 text-green-500" : ""}>
+                    {plan.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => openEdit(plan)}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => toggleActive(plan)}
+                      disabled={updatePlan.isPending}
+                    >
+                      {plan.isActive ? "Disable" : "Enable"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-destructive hover:text-destructive"
+                      onClick={() => remove(plan)}
+                      disabled={deletePlan.isPending}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Plan: {editing?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Price (USD)</Label>
+              <Input type="number" step="0.01" value={form.priceUsd ?? ""} onChange={(e) => setForm({ ...form, priceUsd: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Proxy Count</Label>
+              <Input type="number" value={form.proxyCount ?? ""} onChange={(e) => setForm({ ...form, proxyCount: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Bandwidth (GB)</Label>
+              <Input type="number" value={form.bandwidthGb ?? ""} onChange={(e) => setForm({ ...form, bandwidthGb: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Duration (Days)</Label>
+              <Input type="number" value={form.durationDays ?? ""} onChange={(e) => setForm({ ...form, durationDays: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Proxy Types (comma sep.)</Label>
+              <Input value={form.proxyTypes ?? ""} onChange={(e) => setForm({ ...form, proxyTypes: e.target.value })} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Description</Label>
+              <Input value={form.description ?? ""} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Features (comma sep.)</Label>
+              <Textarea value={form.features ?? ""} onChange={(e) => setForm({ ...form, features: e.target.value })} />
+            </div>
+            <div className="flex items-center gap-3 sm:col-span-2">
+              <Switch checked={!!form.isActive} onCheckedChange={(v) => setForm({ ...form, isActive: v })} />
+              <Label>Plan is active (visible to customers)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={updatePlan.isPending}>
+              {updatePlan.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

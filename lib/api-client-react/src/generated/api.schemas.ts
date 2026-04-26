@@ -288,6 +288,19 @@ export interface CreatePlanBody {
   features?: string[];
 }
 
+export interface UpdatePlanBody {
+  name?: string;
+  description?: string | null;
+  planType?: string;
+  priceUsd?: number;
+  bandwidthGb?: number;
+  proxyCount?: number;
+  durationDays?: number;
+  proxyTypes?: string[];
+  features?: string[];
+  isActive?: boolean;
+}
+
 export type ListAvailableProxiesParams = {
   search?: string;
   country?: string;
@@ -298,3 +311,8 @@ export type ListAvailableProxiesParams = {
 export type AdminUpdateProxyBody = { [key: string]: unknown };
 
 export type AdminUpdateSubscriptionBody = { [key: string]: unknown };
+
+export type AdminDeletePlan200 = {
+  success?: boolean;
+  id?: string;
+};

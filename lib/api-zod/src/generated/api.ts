@@ -523,3 +523,49 @@ export const AdminCreatePlanBody = zod.object({
   proxyTypes: zod.array(zod.string()).optional(),
   features: zod.array(zod.string()).optional(),
 });
+
+/**
+ * @summary Update an existing plan (admin only)
+ */
+export const AdminUpdatePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const AdminUpdatePlanBody = zod.object({
+  name: zod.string().optional(),
+  description: zod.string().nullish(),
+  planType: zod.string().optional(),
+  priceUsd: zod.number().optional(),
+  bandwidthGb: zod.number().optional(),
+  proxyCount: zod.number().optional(),
+  durationDays: zod.number().optional(),
+  proxyTypes: zod.array(zod.string()).optional(),
+  features: zod.array(zod.string()).optional(),
+  isActive: zod.boolean().optional(),
+});
+
+export const AdminUpdatePlanResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  planType: zod.string(),
+  priceUsd: zod.number(),
+  bandwidthGb: zod.number(),
+  proxyCount: zod.number(),
+  durationDays: zod.number(),
+  proxyTypes: zod.array(zod.string()),
+  features: zod.array(zod.string()),
+  isActive: zod.boolean(),
+});
+
+/**
+ * @summary Delete a plan (admin only)
+ */
+export const AdminDeletePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const AdminDeletePlanResponse = zod.object({
+  success: zod.boolean().optional(),
+  id: zod.string().optional(),
+});
