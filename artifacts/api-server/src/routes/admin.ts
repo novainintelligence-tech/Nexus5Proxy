@@ -251,4 +251,41 @@ router.delete("/admin/plans/:id", requireAdmin, async (req, res): Promise<void> 
   res.json({ success: true, id: deleted.id });
 });
 
+// ── Proxy ingestion / health ─────────────────────────────────────────────────
+router.post("/admin/proxies/ingest", requireAdmin, async (_req, res): Promise<void> => {
+  const { runProxyIngestJob } = await import("../jobs/proxy-ingest");
+  // Run async — can take 30+ seconds. Return immediately.
+  runProxyIngestJob().catch((err) => {
+    const { logger } = require("../lib/logger");
+    logger.error({ err }, "Manual ingest failed");
+  });
+  res.json({ started: true, note: "Ingest running in background. Check stats in ~1 min." });
+});
+
+router.post("/admin/proxies/healthcheck", requireAdmin, async (_req, res): Promise<void> => {
+  const { runProxyHealthJob } = await import("../jobs/proxy-health");
+  const result = await runProxyHealthJob();
+  res.json(result);
+});
+
+router.get("/admin/proxies/stats", requireAdmin, async (_req, res): Promise<void> => {
+  const rows = await db.execute<any>(sql`
+    select
+      count(*)::int as total,
+      count(*) filter (where is_active = true)::int as active,
+      count(*) filter (where is_assigned = true)::int as assigned,
+      count(*) filter (where status = 'working')::int as working,
+      count(*) filter (where status = 'dead')::int as dead,
+      count(*) filter (where status = 'untested')::int as untested,
+      count(*) filter (where score >= 90)::int as premium,
+      count(*) filter (where score >= 75 and score < 90)::int as high,
+      count(*) filter (where score >= 50 and score < 75)::int as usable,
+      count(*) filter (where score < 50)::int as bad,
+      coalesce(round(avg(score))::int, 0) as avg_score
+    from proxies
+  `);
+  const row = (rows as any).rows ? (rows as any).rows[0] : (rows as any)[0];
+  res.json(row ?? {});
+});
+
 export default router;

@@ -288,6 +288,20 @@ export interface CreatePlanBody {
   features?: string[];
 }
 
+export interface ProxyPoolStats {
+  total?: number;
+  active?: number;
+  assigned?: number;
+  working?: number;
+  dead?: number;
+  untested?: number;
+  premium?: number;
+  high?: number;
+  usable?: number;
+  bad?: number;
+  avg_score?: number;
+}
+
 export interface UpdatePlanBody {
   name?: string;
   description?: string | null;
@@ -311,6 +325,16 @@ export type ListAvailableProxiesParams = {
 export type AdminUpdateProxyBody = { [key: string]: unknown };
 
 export type AdminUpdateSubscriptionBody = { [key: string]: unknown };
+
+export type AdminTriggerProxyIngest200 = {
+  started?: boolean;
+  note?: string;
+};
+
+export type AdminTriggerProxyHealth200 = {
+  checked?: number;
+  ok?: number;
+};
 
 export type AdminDeletePlan200 = {
   success?: boolean;

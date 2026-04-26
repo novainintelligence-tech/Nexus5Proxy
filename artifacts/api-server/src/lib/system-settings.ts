@@ -1,7 +1,7 @@
 import { db, systemSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
-export type SettingKey = "auto_confirm_payments";
+export type SettingKey = "auto_confirm_payments" | "proxy_ingest_enabled";
 
 export async function getSetting<T = unknown>(key: SettingKey, fallback: T): Promise<T> {
   const [row] = await db

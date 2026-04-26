@@ -525,6 +525,39 @@ export const AdminCreatePlanBody = zod.object({
 });
 
 /**
+ * @summary Trigger a manual proxy ingestion run
+ */
+export const AdminTriggerProxyIngestResponse = zod.object({
+  started: zod.boolean().optional(),
+  note: zod.string().optional(),
+});
+
+/**
+ * @summary Trigger a proxy health-check batch
+ */
+export const AdminTriggerProxyHealthResponse = zod.object({
+  checked: zod.number().optional(),
+  ok: zod.number().optional(),
+});
+
+/**
+ * @summary Aggregate proxy pool statistics
+ */
+export const AdminGetProxyPoolStatsResponse = zod.object({
+  total: zod.number().optional(),
+  active: zod.number().optional(),
+  assigned: zod.number().optional(),
+  working: zod.number().optional(),
+  dead: zod.number().optional(),
+  untested: zod.number().optional(),
+  premium: zod.number().optional(),
+  high: zod.number().optional(),
+  usable: zod.number().optional(),
+  bad: zod.number().optional(),
+  avg_score: zod.number().optional(),
+});
+
+/**
  * @summary Update an existing plan (admin only)
  */
 export const AdminUpdatePlanParams = zod.object({

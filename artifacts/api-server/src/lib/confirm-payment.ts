@@ -1,7 +1,7 @@
 import {
   db, paymentsTable, plansTable, subscriptionsTable, proxiesTable, userProxiesTable,
 } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne, desc, inArray } from "drizzle-orm";
 import { generateId } from "./id";
 import { logger } from "./logger";
 
@@ -96,11 +96,25 @@ export async function confirmPaymentInDb(paymentId: string, adminNote: string | 
   }
 
   const neededCount = plan.proxyCount;
-  const availableProxies = await db
+  const allowedTypes = (plan.proxyTypes ?? []).filter(Boolean);
+
+  // Smart selection: only active+working+unassigned proxies, optionally filtered
+  // by the plan's allowed types, ordered by score DESC so users get the best inventory.
+  let query = db
     .select()
     .from(proxiesTable)
-    .where(and(eq(proxiesTable.isActive, true), eq(proxiesTable.isAssigned, false)))
+    .where(
+      and(
+        eq(proxiesTable.isActive, true),
+        eq(proxiesTable.isAssigned, false),
+        ne(proxiesTable.status, "dead"),
+        ...(allowedTypes.length ? [inArray(proxiesTable.proxyType, allowedTypes)] : []),
+      ),
+    )
+    .orderBy(desc(proxiesTable.score))
     .limit(neededCount);
+
+  const availableProxies = await query;
 
   for (const proxy of availableProxies) {
     await db.insert(userProxiesTable).values({
@@ -114,8 +128,14 @@ export async function confirmPaymentInDb(paymentId: string, adminNote: string | 
   }
 
   logger.info(
-    { paymentId, subscriptionId, proxiesAssigned: availableProxies.length },
-    "Payment confirmed",
+    {
+      paymentId,
+      subscriptionId,
+      proxiesAssigned: availableProxies.length,
+      requested: neededCount,
+      typesFilter: allowedTypes,
+    },
+    "Payment confirmed (smart-assigned proxies)",
   );
 
   return updatedPayment;

@@ -24,6 +24,8 @@ import type {
   AdminPayment,
   AdminProxy,
   AdminStats,
+  AdminTriggerProxyHealth200,
+  AdminTriggerProxyIngest200,
   AdminUpdateProxyBody,
   AdminUpdateSubscriptionBody,
   AdminUser,
@@ -41,6 +43,7 @@ import type {
   Payment,
   Plan,
   Proxy,
+  ProxyPoolStats,
   PurchaseCartBody,
   PurchaseResult,
   SubmitHashBody,
@@ -2614,6 +2617,250 @@ export const useAdminCreatePlan = <
 > => {
   return useMutation(getAdminCreatePlanMutationOptions(options));
 };
+
+/**
+ * @summary Trigger a manual proxy ingestion run
+ */
+export const getAdminTriggerProxyIngestUrl = () => {
+  return `/api/admin/proxies/ingest`;
+};
+
+export const adminTriggerProxyIngest = async (
+  options?: RequestInit,
+): Promise<AdminTriggerProxyIngest200> => {
+  return customFetch<AdminTriggerProxyIngest200>(
+    getAdminTriggerProxyIngestUrl(),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getAdminTriggerProxyIngestMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminTriggerProxyIngest>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminTriggerProxyIngest>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["adminTriggerProxyIngest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminTriggerProxyIngest>>,
+    void
+  > = () => {
+    return adminTriggerProxyIngest(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminTriggerProxyIngestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminTriggerProxyIngest>>
+>;
+
+export type AdminTriggerProxyIngestMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Trigger a manual proxy ingestion run
+ */
+export const useAdminTriggerProxyIngest = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminTriggerProxyIngest>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminTriggerProxyIngest>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getAdminTriggerProxyIngestMutationOptions(options));
+};
+
+/**
+ * @summary Trigger a proxy health-check batch
+ */
+export const getAdminTriggerProxyHealthUrl = () => {
+  return `/api/admin/proxies/healthcheck`;
+};
+
+export const adminTriggerProxyHealth = async (
+  options?: RequestInit,
+): Promise<AdminTriggerProxyHealth200> => {
+  return customFetch<AdminTriggerProxyHealth200>(
+    getAdminTriggerProxyHealthUrl(),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getAdminTriggerProxyHealthMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminTriggerProxyHealth>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminTriggerProxyHealth>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["adminTriggerProxyHealth"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminTriggerProxyHealth>>,
+    void
+  > = () => {
+    return adminTriggerProxyHealth(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminTriggerProxyHealthMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminTriggerProxyHealth>>
+>;
+
+export type AdminTriggerProxyHealthMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Trigger a proxy health-check batch
+ */
+export const useAdminTriggerProxyHealth = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminTriggerProxyHealth>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminTriggerProxyHealth>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getAdminTriggerProxyHealthMutationOptions(options));
+};
+
+/**
+ * @summary Aggregate proxy pool statistics
+ */
+export const getAdminGetProxyPoolStatsUrl = () => {
+  return `/api/admin/proxies/stats`;
+};
+
+export const adminGetProxyPoolStats = async (
+  options?: RequestInit,
+): Promise<ProxyPoolStats> => {
+  return customFetch<ProxyPoolStats>(getAdminGetProxyPoolStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getAdminGetProxyPoolStatsQueryKey = () => {
+  return [`/api/admin/proxies/stats`] as const;
+};
+
+export const getAdminGetProxyPoolStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminGetProxyPoolStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminGetProxyPoolStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getAdminGetProxyPoolStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof adminGetProxyPoolStats>>
+  > = ({ signal }) => adminGetProxyPoolStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminGetProxyPoolStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AdminGetProxyPoolStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminGetProxyPoolStats>>
+>;
+export type AdminGetProxyPoolStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Aggregate proxy pool statistics
+ */
+
+export function useAdminGetProxyPoolStats<
+  TData = Awaited<ReturnType<typeof adminGetProxyPoolStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminGetProxyPoolStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAdminGetProxyPoolStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Update an existing plan (admin only)

@@ -27,6 +27,9 @@ import {
   useAdminCreatePlan,
   useAdminUpdatePlan,
   useAdminDeletePlan,
+  useAdminTriggerProxyIngest,
+  useAdminTriggerProxyHealth,
+  useAdminGetProxyPoolStats,
   useListPlans,
   getAdminListUsersQueryKey,
   getAdminListPaymentsQueryKey,
@@ -54,11 +57,12 @@ export function Admin() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 bg-card border border-border h-auto">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 bg-card border border-border h-auto">
           <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="users" className="text-xs sm:text-sm">Users</TabsTrigger>
           <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
           <TabsTrigger value="proxies" className="text-xs sm:text-sm">Proxies</TabsTrigger>
+          <TabsTrigger value="pool" className="text-xs sm:text-sm">Pool</TabsTrigger>
           <TabsTrigger value="subscriptions" className="text-xs sm:text-sm">Subs</TabsTrigger>
           <TabsTrigger value="plans" className="text-xs sm:text-sm">Plans</TabsTrigger>
           <TabsTrigger value="settings" className="text-xs sm:text-sm">Settings</TabsTrigger>
@@ -68,6 +72,7 @@ export function Admin() {
           <TabsContent value="users"><UsersTab /></TabsContent>
           <TabsContent value="payments"><PaymentsTab /></TabsContent>
           <TabsContent value="proxies"><ProxiesTab /></TabsContent>
+          <TabsContent value="pool"><PoolTab /></TabsContent>
           <TabsContent value="subscriptions"><SubscriptionsTab /></TabsContent>
           <TabsContent value="plans"><PlansTab /></TabsContent>
           <TabsContent value="settings"><SettingsTab /></TabsContent>
@@ -836,6 +841,100 @@ function PlansTab() {
       </Card>
 
       <ActivePlansCard plans={plans ?? []} />
+    </div>
+  );
+}
+
+function PoolTab() {
+  const { toast } = useToast();
+  const { data: stats, isLoading, refetch } = useAdminGetProxyPoolStats({
+    query: { refetchInterval: 30_000 } as any,
+  });
+  const triggerIngest = useAdminTriggerProxyIngest();
+  const triggerHealth = useAdminTriggerProxyHealth();
+
+  const handleIngest = () => {
+    triggerIngest.mutate(undefined, {
+      onSuccess: (r: any) => {
+        toast({ title: "Ingest started", description: r?.note ?? "Running in background." });
+        setTimeout(() => refetch(), 10_000);
+      },
+      onError: (e: any) =>
+        toast({ title: "Ingest failed", description: e?.message ?? "Server error", variant: "destructive" }),
+    });
+  };
+
+  const handleHealth = () => {
+    triggerHealth.mutate(undefined, {
+      onSuccess: (r: any) => {
+        toast({
+          title: "Health check finished",
+          description: `Checked ${r?.checked ?? 0}, ${r?.ok ?? 0} responding.`,
+        });
+        refetch();
+      },
+      onError: (e: any) =>
+        toast({ title: "Health check failed", description: e?.message ?? "Server error", variant: "destructive" }),
+    });
+  };
+
+  const s: any = stats ?? {};
+  const tile = (label: string, value: any, color = "text-foreground") => (
+    <Card className="p-4">
+      <div className="text-xs text-muted-foreground uppercase tracking-wider">{label}</div>
+      <div className={`text-2xl font-bold mt-1 ${color}`}>{value ?? "—"}</div>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Proxy Pool Operations</CardTitle>
+          <CardDescription>
+            Auto-fetch from public sources, enrich with geo+ISP data, score, and clean dead proxies.
+            Background jobs run automatically (ingest every 15 min, health every 5 min).
+            Ingestion is gated by the <strong>proxy_ingest_enabled</strong> setting.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Button onClick={handleIngest} disabled={triggerIngest.isPending}>
+            {triggerIngest.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+            Ingest Now
+          </Button>
+          <Button variant="outline" onClick={handleHealth} disabled={triggerHealth.isPending}>
+            {triggerHealth.isPending ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Activity className="w-4 h-4 mr-2" />}
+            Run Health Check
+          </Button>
+          <Button variant="ghost" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh Stats
+          </Button>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+        <div className="h-32 flex items-center justify-center"><RefreshCw className="w-6 h-6 animate-spin text-primary" /></div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {tile("Total Proxies", s.total)}
+            {tile("Active", s.active, "text-green-500")}
+            {tile("Working", s.working, "text-green-500")}
+            {tile("Avg Score", s.avg_score, "text-primary")}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {tile("Premium (≥90)", s.premium, "text-yellow-400")}
+            {tile("High (75-89)", s.high, "text-blue-400")}
+            {tile("Usable (50-74)", s.usable, "text-muted-foreground")}
+            {tile("Bad (<50)", s.bad, "text-destructive")}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {tile("Assigned", s.assigned)}
+            {tile("Untested", s.untested, "text-muted-foreground")}
+            {tile("Dead", s.dead, "text-destructive")}
+          </div>
+        </>
+      )}
     </div>
   );
 }
