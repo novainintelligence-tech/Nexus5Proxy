@@ -11,6 +11,64 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "artifacts/nexusproxy: web"
+author = "agent"
+mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "artifacts/nexusproxy"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/nexusproxy run dev"
+cwd = "./artifacts/nexusproxy"
+waitForPort = 23432
+router = "path"
+
+[workflows.workflow.tasks.env]
+PORT = "23432"
+BASE_PATH = "/nexusproxy/"
+
+[[workflows.workflow]]
+name = "artifacts/api-server: API Server"
+author = "agent"
+mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "3B4_FFSkEVBkAeYMFRJ2e"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server run dev"
+cwd = "./artifacts/api-server"
+waitForPort = 8080
+
+[workflows.workflow.tasks.env]
+PORT = "8080"
+
+[[workflows.workflow]]
+name = "artifacts/mockup-sandbox: Component Preview Server"
+author = "agent"
+mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "XegfDyZt7HqfW2Bb8Ghoy"
+isCanvasWorkflow = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/mockup-sandbox run dev"
+cwd = "./artifacts/mockup-sandbox"
+waitForPort = 8081
+
+[workflows.workflow.tasks.env]
+PORT = "8081"
+BASE_PATH = "/__mockup"
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
@@ -36,6 +94,10 @@ localPort = 8083
 externalPort = 4200
 
 [[ports]]
+localPort = 8084
+externalPort = 5173
+
+[[ports]]
 localPort = 23432
 externalPort = 3000
 
@@ -46,6 +108,10 @@ externalPort = 3002
 [[ports]]
 localPort = 23434
 externalPort = 3001
+
+[[ports]]
+localPort = 23435
+externalPort = 5000
 
 [nix]
 channel = "stable-25_05"
