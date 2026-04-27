@@ -1,0 +1,77 @@
+# =============================================================================
+# Docker Build Context Ignore File
+# =============================================================================
+# Files matching these patterns will be excluded from Docker build context
+# This reduces build time and image size
+
+# Version Control
+.git
+.gitignore
+.github
+.gitattributes
+
+# Node.js
+node_modules
+npm-debug.log
+npm-error.log
+yarn-error.log
+pnpm-debug.log
+pnpm-error.log
+
+# Build artifacts
+dist
+build
+out
+*.tsbuildinfo
+
+# Environment files (keep .env.example for documentation)
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# IDEs and editors
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage
+.nyc_output
+junit.xml
+
+# Documentation
+docs
+*.md
+!DOCKER.md
+!DOCKER_QUICK_REFERENCE.md
+
+# CI/CD
+.github/workflows
+.gitlab-ci.yml
+.travis.yml
+
+# Development
+.replit
+.replitignore
+replit.md
+Makefile
+
+# Misc
+.cache
+tmp
+temp
+logs
+*.log
+
+# Docker files (not needed in build context, referenced separately)
+Dockerfile.bak
+docker-compose.override.yml
+
+# Project-specific
+attached_assets
+logo
+backups
